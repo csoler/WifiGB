@@ -474,7 +474,7 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 
 	//push_into_queue(queue,new Exp_date(2)) ;
 
-	for(int i=0;i<10;++i)
+	for(int i=0;i<50;++i)
 	{
 		// take queue content with least entropy and combine them together
 
@@ -507,8 +507,15 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 
 	// init all expressions that depend on parameters
 	//
+	std::cerr << "Input queue:" << std::endl;
+
 	for(ExpressionQueue::iterator it(queue.begin());it!=queue.end();++it)
+	{
+		std::cerr << "Queue element: " << std::endl;
 		it->second->initState() ;
+		it->second->show() ;
+	}
+	std::cerr << "************* END ***********" << std::endl;
 
 	// 2 - take al elements and apply parameters to them, see what we get.
 	
