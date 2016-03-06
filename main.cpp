@@ -75,7 +75,7 @@ class Exp_numeric_counter: public Expression
 		
 		virtual Expression *deepCopy() const{ return new Exp_numeric_counter(*this) ; }
 
-		virtual Sha1CheckSum topologicalHash() { return Sha1CheckSum((unsigned char*)std::string("Counter").c_str(),7) ; }
+		virtual Sha1CheckSum topologicalHash() { std::string s = "Numeric counter" ; return Sha1CheckSum((unsigned char*)s.c_str(),s.length()) ; }
 	protected:
 		virtual void print(int depth) const 
 		{
@@ -112,7 +112,7 @@ class Exp_ascii_counter: public Expression
 		
 		virtual Expression *deepCopy() const{ return new Exp_ascii_counter(*this) ; }
 
-		virtual Sha1CheckSum topologicalHash() { return Sha1CheckSum((unsigned char*)std::string("ASCII"+mBase+('A'+mBytes)).c_str(),12) ; }
+		virtual Sha1CheckSum topologicalHash() { std::string s = "ASCII"+mBase+('A'+mBytes) ; return Sha1CheckSum((unsigned char*)s.c_str(),s.length()) ; }
 	protected:
 		virtual void print(int depth) const 
 		{
@@ -182,7 +182,16 @@ class Exp_hash_generic: public Expression
 		virtual Expression *deepCopy() const { return new Exp_hash_generic(mArgument->deepCopy()) ; }
 
 		virtual void initState() { mHashId = 0 ;}
-		virtual bool nextState() { mHashId = (mHashId+1)%mNumHashes; return (bool)mHashId; }
+		virtual bool nextState() 
+		{ 
+			if(mArgument->nextState())
+				return true ;
+
+			mArgument->initState() ;
+
+			mHashId = (mHashId+1)%mNumHashes; 
+			return (bool)mHashId; 
+		}
 		virtual float entropy() const { return mArgument->entropy() + 1; }
 
 		virtual Sha1CheckSum topologicalHash() 
@@ -458,16 +467,14 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 	// add a 2 bytes counter
 
 	push_into_queue(queue,new Exp_numeric_counter(4)) ;
-	push_into_queue(queue,new Exp_ascii_counter(4,'a')) ;
+	push_into_queue(queue,new Exp_hash_generic(new Exp_ascii_counter(4,'a'))) ;
 	push_into_queue(queue,new Exp_ascii_counter(4,'A')) ;
 	
 	// add a date counter
 
 	//push_into_queue(queue,new Exp_date(2)) ;
 
-	//push_into_queue(queue,new Exp_date()) ; // some date
-
-	for(int i=0;i<50;++i)
+	for(int i=0;i<10;++i)
 	{
 		// take queue content with least entropy and combine them together
 
@@ -503,7 +510,7 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 	for(ExpressionQueue::iterator it(queue.begin());it!=queue.end();++it)
 		it->second->initState() ;
 
-	// 2 - take all elements and apply parameters to them, see what we get.
+	// 2 - take al elements and apply parameters to them, see what we get.
 	
 	while(!queue.empty())
 	{
