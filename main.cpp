@@ -382,6 +382,25 @@ static bool MemBlockMatch(const MemBlock& input_hex,const MemBlock& b)
 	return false ;
 }
 
+// Checks that 
+static bool AsciiMatch(const MemBlock& input_asc,const MemBlock& b)
+{
+	if(b.size() < input_asc.size())
+		return false ;
+
+	if(input_asc.isSubBlock(b))
+		return true ;
+
+	MemBlock b_asc(b) ;
+
+	for(uint32_t i=0;i<b.size();++i)
+		b_asc[i] = (b[i] % 26)+'A' ;
+
+	if(input_asc.isSubBlock(b_asc))
+		return true ;
+
+	return false ;
+}
 typedef std::pair<float,Expression*> QueueItem ;
 
 bool operator<(const QueueItem& e1,const QueueItem& e2)
@@ -436,15 +455,17 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 	std::vector<std::string> ascii_strings = conf.getMultipleStringValue("ASCII_STRINGS",std::vector<std::string>()) ;
 
 	std::string hexa_passphrase_string = conf.getStringValue("HEXA_WPA_PASSPHRASE","") ;
+	std::string ascii_passphrase_string = conf.getStringValue("ASCII_WPA_PASSPHRASE","") ;
 	
-	if(hexa_passphrase_string.empty())
-		throw std::runtime_error("No passphrase hexa string supplied. Please use variable HEXA_WPA_PASSPHRASE in your config file.") ;
+	if(hexa_passphrase_string.empty() && ascii_passphrase_string.empty())
+		throw std::runtime_error("No passphrase string supplied. Please use variable {HEXA,ASCII}_WPA_PASSPHRASE in your config file.") ;
 
 	// init queue
 	//
 	ExpressionQueue queue ;
 	tries = 0 ;
 
+	MemBlock input_asc = MemBlock::fromString(ascii_passphrase_string) ;
 	MemBlock input_hex = MemBlock::fromHex(hexa_passphrase_string) ;
 	std::set<Sha1CheckSum> queue_content ;
 
@@ -474,7 +495,7 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 
 	//push_into_queue(queue,new Exp_date(2)) ;
 
-	for(int i=0;i<50;++i)
+	for(int i=0;i<30;++i)
 	{
 		// take queue content with least entropy and combine them together
 
@@ -532,19 +553,40 @@ static bool grosbelu(const std::string& input,Expression *& exp,uint64_t& tries)
 		{
 			MemBlock b = e->eval() ;
 
-			//std::cerr << e->length() << std::endl;
-		if(drand48() < 0.00001)
+			if(!hexa_passphrase_string.empty())
 			{
-				std::cerr << "Testing " << input_hex.toHex() << " toward " << b.toHex() << std::endl;
-				e->show();
+				//std::cerr << e->length() << std::endl;
+				if(drand48() < 0.00001)
+				{
+					std::cerr << "Testing " << input_hex.toHex() << " toward " << b.toHex() << std::endl;
+					e->show();
+				}
+
+				if(MemBlockMatch(input_hex,b))
+				{
+					std::cerr << "matched " << input_hex.toHex() << " with " << b.toHex() << std::endl;
+					exp = e ;
+					return true ;
+				}
 			}
 
-			if(MemBlockMatch(input_hex,b))
+			if(!ascii_passphrase_string.empty())
 			{
-				std::cerr << "matched " << input_hex.toHex() << " with " << b.toHex() << std::endl;
-				exp = e ;
-				return true ;
+				//std::cerr << e->length() << std::endl;
+				if(drand48() < 0.00001)
+				{
+					std::cerr << "Testing ascii " << input_asc.toString() << " toward " << b.toHex() << std::endl;
+					e->show();
+				}
+
+				if(AsciiMatch(input_asc,b))
+				{
+					std::cerr << "matched " << input_asc.toString() << " with " << b.toHex() << std::endl;
+					exp = e ;
+					return true ;
+				}
 			}
+
 
 			++tries ;
 			if(!e->nextState()) 

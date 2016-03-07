@@ -42,7 +42,7 @@ class MemBlock: public std::vector<unsigned char>
 			if(m.size() < size())
 				return false ;
 
-			for(uint32_t i=0;i+size()<m.size();++i)	// for all positions into m
+			for(uint32_t i=0;i+size()<=m.size();++i)	// for all positions into m
 			{
 				bool equal = true ;
 
